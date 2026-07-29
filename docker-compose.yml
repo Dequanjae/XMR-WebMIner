@@ -1,0 +1,29 @@
+services:
+  web-miner:
+    image: nginx:alpine
+    container_name: xmr-web-miner
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web:/usr/share/nginx/html
+    restart: unless-stopped
+
+  proxy:
+    image: node:12-alpine
+    container_name: xmr-miner-proxy
+    ports:
+      - "8081:8081"
+    environment:
+      - WALLET=YOUR_WALLET_ADDRESS_HERE
+      - POOL_HOST=pool.supportxmr.com
+      - POOL_PORT=7777
+      - PROXY_PORT=8081
+      - COIN=xmr
+      - DIFF=5000
+    command: >
+      sh -c 'apk add --no-cache git python3 make g++ &&
+      git clone https://github.com/jtgrassie/xmr-node-proxy.git /app &&
+      cd /app && npm install &&
+      node -e "var c=require(\"./config_example.json\");c.pools[0].username=process.env.WALLET;c.pools[0].hostname=process.env.POOL_HOST;c.pools[0].port=parseInt(process.env.POOL_PORT);c.listeningPorts[0].port=parseInt(process.env.PROXY_PORT);c.listeningPorts[0].diff=parseInt(process.env.DIFF);c.listeningPorts[0].coin=process.env.COIN;require(\"fs\").writeFileSync(\"config.json\",JSON.stringify(c,null,2))" &&
+      node proxy.js'
+    restart: unless-stopped

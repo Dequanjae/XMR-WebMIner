@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XMR Miner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0a;color:#c0c0c0;font-family:'Courier New',monospace;font-size:14px;padding:16px;min-height:100vh}
+#setup{max-width:600px;margin:60px auto}
+#setup h1{color:#0f0;font-size:18px;margin-bottom:16px}
+#setup input{display:block;width:100%;background:#111;border:1px solid #333;color:#0f0;padding:10px;font-family:inherit;font-size:13px;margin-bottom:12px;outline:none}
+#setup input:focus{border-color:#0f0}
+#setup button{background:#111;border:1px solid #0f0;color:#0f0;padding:10px 24px;font-family:inherit;font-size:13px;cursor:pointer}
+#setup button:hover{background:#0f01}
+#setup .hint{color:#555;font-size:11px;margin-top:8px}
+
+.term-line{white-space:pre-wrap;word-break:break-all;line-height:1.6}
+.term-line .dim{color:#555}
+.term-line .green{color:#0f0}
+.term-line .red{color:#f00}
+.term-line .yellow{color:#ff0}
+.term-line .cyan{color:#0ff}
+.term-line .magenta{color:#f0f}
+.term-line .gray{color:#888}
+
+#stats{border:1px solid #222;padding:12px;margin-bottom:12px}
+#stats .row{display:flex;justify-content:space-between;padding:3px 0}
+#stats .row .l{color:#666}
+#stats .row .r{text-align:right;font-weight:bold}
+#stats .row .r.g{color:#0f0}
+#stats .row .r.r{color:#f00}
+#stats .row .r.y{color:#ff0}
+#stats .row .r.c{color:#0ff}
+
+#log{border:1px solid #222;padding:12px;height:50vh;overflow-y:auto;font-size:12px;line-height:1.5;background:#050505}
+#log::-webkit-scrollbar{width:4px}
+#log::-webkit-scrollbar-track{background:#111}
+#log::-webkit-scrollbar-thumb{background:#333}
+.log-line{padding:1px 0}
+.log-line .t{color:#444}
+.log-line .ok{color:#0f0}
+.log-line .fail{color:#f00}
+.log-line .info{color:#888}
+
+#bar{display:flex;gap:8px;margin-top:8px;font-size:11px;color:#444}
+#bar span{color:#666}
+
+@keyframes pulse{0%{opacity:1}50%{opacity:0.3}100%{opacity:1}}
+.blink{animation:pulse 1s infinite}
+</style>
+</head>
+<body>
+
+<div id="setup">
+<h1>⛏ XMR Miner v0.1</h1>
+<input id="wallet-input" type="text" placeholder="enter wallet address..." spellcheck="false">
+<button onclick="start()">[ start ]</button>
+<div class="hint">or append ?wallet=ADDRESS&amp;port=8081 to URL</div>
+</div>
+
+<div id="mining" style="display:none">
+<div id="stats">
+<div class="row"><span class="l">status</span><span class="r c" id="s-status">connecting...</span></div>
+<div class="row"><span class="l">wallet</span><span class="r" id="s-wallet" style="font-size:11px;color:#888"></span></div>
+<div class="row"><span class="l">hashrate</span><span class="r g" id="s-hashrate">0 H/s</span></div>
+<div class="row"><span class="l">total hashes</span><span class="r" id="s-total">0</span></div>
+<div class="row"><span class="l">accepted</span><span class="r g" id="s-accepted">0</span></div>
+<div class="row"><span class="l">rejected</span><span class="r r" id="s-rejected">0</span></div>
+<div class="row"><span class="l">xmr price</span><span class="r y" id="s-price">fetching...</span></div>
+<div class="row"><span class="l">est. mined (CAD)</span><span class="r y" id="s-earned">$0.00</span></div>
+</div>
+<div id="log"></div>
+<div id="bar"><span class="blink">●</span> <span id="bar-text">waiting for jobs</span></div>
+</div>
+
+<script>
+var WALLET = '';
+var PORT = 8081;
+var stats = { hashrate:0, totalHashes:0, acceptedShares:0, rejectedShares:0, status:'idle', walletAddress:'' };
+var logEl = document.getElementById('log');
+var xmrPriceCAD = 0;
+var priceFetched = false;
+
+function getParams() {
+  var p = new URLSearchParams(window.location.search);
+  return { wallet: p.get('wallet') || '', port: p.get('port') || '8081' };
+}
+
+var params = getParams();
+if (params.wallet) {
+  document.getElementById('wallet-input').value = params.wallet;
+  PORT = params.port;
+}
+
+function start() {
+  WALLET = document.getElementById('wallet-input').value.trim();
+  if (!WALLET || WALLET.length < 95) { alert('invalid wallet address'); return; }
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('mining').style.display = 'block';
+
+  window.__minerWallet = WALLET;
+  window.__minerPort = PORT;
+
+  Module = {
+    print: function(x) {},
+    printErr: function(x) {},
+    canvas: { addEventListener:function(){}, getBoundingClientRect:function(){return{bottom:0,height:0,left:0,right:0,top:0,width:0}} },
+    setStatus: function(){},
+    onCustomMessage: function(e) {
+      var d = e.data.userData;
+      switch(d.message) {
+        case 'stats_update':
+          if (d.stats) {
+            var prev = { accepted: stats.acceptedShares, rejected: stats.rejectedShares };
+            stats = d.stats;
+            updateStats();
+            if (d.stats.acceptedShares > prev.accepted) log('accepted share','ok');
+            if (d.stats.rejectedShares > prev.rejected) log('rejected share','fail');
+          }
+          break;
+        case 'log_ui':
+          log(d.text, 'info');
+          break;
+        case 'show_ui':
+          log('miner ready','info');
+          break;
+      }
+    }
+  };
+
+  var s = document.createElement('script');
+  s.src = 'miner.js';
+  s.onload = function() { log('engine loaded','info'); };
+  s.onerror = function() { log('failed to load engine','fail'); };
+  document.body.appendChild(s);
+
+  fetchPrice();
+  setInterval(function(){ updateStats(); fetchPrice(); }, 30000);
+}
+
+function updateStats() {
+  if (!stats) return;
+  var s = document.getElementById('s-status');
+  var statusMap = { 'idle':'idle', 'connected':'connected', 'mining':'mining', 'disconnected':'disconnected', 'error':'error' };
+  s.textContent = statusMap[stats.status] || stats.status;
+  s.className = 'r ' + (stats.status === 'mining' || stats.status === 'connected' ? 'c' : stats.status === 'error' ? 'r' : '');
+
+  document.getElementById('s-wallet').textContent = stats.walletAddress || WALLET;
+  document.getElementById('s-hashrate').textContent = (stats.hashrate || 0).toLocaleString() + ' H/s';
+  document.getElementById('s-total').textContent = (stats.totalHashes || 0).toLocaleString();
+  document.getElementById('s-accepted').textContent = (stats.acceptedShares || 0).toLocaleString();
+  document.getElementById('s-rejected').textContent = (stats.rejectedShares || 0).toLocaleString();
+
+  var bar = document.getElementById('bar-text');
+  if (stats.status === 'mining') bar.textContent = 'mining @ ' + (stats.hashrate || 0).toLocaleString() + ' H/s';
+  else if (stats.status === 'connected') bar.textContent = 'connected, waiting for job';
+  else if (stats.status === 'error') bar.textContent = 'connection error';
+  else bar.textContent = 'waiting...';
+
+  updateEarnings();
+}
+
+function updateEarnings() {
+  if (!priceFetched) return;
+  var hrs = (stats.totalHashes || 0) / ((stats.hashrate || 1) * 3600);
+  // Rough estimate: ~300 MH/s network, ~1 XMR per day per ~1 MH/s (simplified)
+  // Better to just show price and let user interpret
+  document.getElementById('s-price').textContent = '$' + xmrPriceCAD.toFixed(2) + ' CAD';
+  // Show a very rough estimate based on accepted shares
+  var est = (stats.acceptedShares || 0) * 0.0000000001 * xmrPriceCAD;
+  document.getElementById('s-earned').textContent = est < 0.01 ? '< $0.01' : '$' + est.toFixed(4);
+}
+
+function fetchPrice() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=cad', true);
+  xhr.timeout = 10000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (data && data.monero && data.monero.cad) {
+          xmrPriceCAD = data.monero.cad;
+          priceFetched = true;
+          document.getElementById('s-price').textContent = '$' + xmrPriceCAD.toFixed(2) + ' CAD';
+        }
+      } catch(e) {}
+    }
+  };
+  xhr.onerror = function() { document.getElementById('s-price').textContent = 'unavailable'; };
+  xhr.send();
+}
+
+function log(text, type) {
+  var t = new Date().toLocaleTimeString();
+  var line = document.createElement('div');
+  line.className = 'log-line';
+  var cls = type === 'ok' ? 'ok' : type === 'fail' ? 'fail' : 'info';
+  line.innerHTML = '<span class="t">[' + t + ']</span> <span class="' + cls + '">' + esc(text) + '</span>';
+  logEl.appendChild(line);
+  if (text === 'accepted share') {
+    // Add the green "Token Found" line
+    var found = document.createElement('div');
+    found.className = 'log-line';
+    found.innerHTML = '<span class="t">[' + t + ']</span> <span class="ok">>>> TOKEN FOUND <<<</span>';
+    logEl.appendChild(found);
+  }
+  if (text === 'rejected share') {
+    var reject = document.createElement('div');
+    reject.className = 'log-line';
+    var hex = Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join('');
+    reject.innerHTML = '<span class="t">[' + t + ']</span> <span class="fail">TRY AGAIN ' + hex + '</span>';
+    logEl.appendChild(reject);
+  }
+  logEl.scrollTop = logEl.scrollHeight;
+  if (logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
+}
+
+function esc(s) { var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// Auto-start if wallet in URL
+if (params.wallet) { setTimeout(start, 100); }
+</script>
+</body>
+</html>
