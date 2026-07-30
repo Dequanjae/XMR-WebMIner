@@ -1,11 +1,18 @@
 services:
   web-miner:
-    image: nginx:alpine
+    image: alpine:latest
     container_name: xmr-web-miner
     ports:
-      - "8080:80"
-    volumes:
-      - ./web:/usr/share/nginx/html
+      - "8088:80"
+    environment:
+      - REPO=https://github.com/Dequanjae/XMR-WebMIner.git
+    command: >
+      sh -c 'apk add --no-cache git &&
+      git clone "$REPO" /tmp/repo &&
+      mkdir -p /var/www &&
+      cp -r /tmp/repo/web/* /var/www/ &&
+      rm -rf /tmp/repo &&
+      httpd -f -p 80 -h /var/www'
     restart: unless-stopped
 
   proxy:
