@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XMR Miner</title>
+<meta name="theme-color" content="#0a0a0f">
+<style>
+  @font-face {
+    font-family: 'IBM Plex Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/ibm-plex-mono-regular.woff2') format('woff2');
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Mono', monospace;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .widget {
+    width: 100%;
+    max-width: 600px;
+    background: #111118;
+    border: 1px solid #222;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #222;
+  }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #666; display: inline-block; margin-right: 6px;
+  }
+  .status-dot.active { background: #3fcf6a; box-shadow: 0 0 8px #3fcf6a; }
+  .status-dot.error { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+  .body { padding: 1.5rem; }
+  .stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem;
+  }
+  .stat {
+    background: #0a0a0f; border: 1px solid #222; border-radius: 8px; padding: 12px;
+  }
+  .stat .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 24px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .value.hashrate { color: #3fcf6a; }
+  .stat .value.shares { color: #c9a84c; }
+  input, button {
+    font-family: inherit; font-size: 13px;
+    background: #0a0a0f; border: 1px solid #333; color: #e0e0e0;
+    padding: 10px 14px; border-radius: 6px; width: 100%; margin-bottom: 10px;
+  }
+  input:focus { border-color: #3fcf6a; outline: none; }
+  button {
+    cursor: pointer; border-color: #3fcf6a; color: #3fcf6a;
+    width: auto; padding: 10px 24px;
+  }
+  button:hover { background: rgba(63,207,106,0.1); }
+  .log-box {
+    background: #000; border-radius: 8px; padding: 12px;
+    font-size: 12px; max-height: 300px; overflow-y: auto;
+    color: #8f8; line-height: 1.5; margin-top: 1rem;
+  }
+  .log-entry { border-bottom: 1px solid #111; padding: 2px 0; }
+  .log-time { color: #444; margin-right: 6px; }
+  .wallet-box {
+    background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 6px; padding: 10px; font-size: 12px;
+    color: #c9a84c; word-break: break-all; margin-top: 1rem;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="widget">
+  <div class="header">
+    <h1>⛏ XMR Miner</h1>
+    <div><span class="status-dot" id="statusDot"></span><span id="statusText">Disconnected</span></div>
+  </div>
+  <div class="body">
+    <!-- Setup screen -->
+    <div id="setup">
+      <h2 style="margin-bottom:1rem;font-size:14px;color:#888;">Wallet Setup</h2>
+      <input id="walletInput" placeholder="Monero wallet address" value="DEFAULT_WALLET_PLACEHOLDER">
+      <input id="poolHost" placeholder="Pool host" value="DEFAULT_POOL_HOST_PLACEHOLDER">
+      <input id="poolPort" placeholder="Pool port" value="DEFAULT_POOL_PORT_PLACEHOLDER" type="number">
+      <button onclick="startMining()">[ Start Mining ]</button>
+    </div>
+    <!-- Mining screen -->
+    <div id="mining" class="hidden">
+      <div class="stat-grid">
+        <div class="stat"><div class="label">Hashrate</div><div class="value hashrate" id="hashrate">0 H/s</div></div>
+        <div class="stat"><div class="label">Accepted</div><div class="value shares" id="accepted">0</div></div>
+        <div class="stat"><div class="label">Rejected</div><div class="value" id="rejected" style="color:#e74c3c">0</div></div>
+        <div class="stat"><div class="label">Mode</div><div class="value" id="mode" style="font-size:14px;">—</div></div>
+      </div>
+      <div class="wallet-box" id="walletDisplay">—</div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+</div>
+<script src="miner.js"></script>
+</body>
+</html>
