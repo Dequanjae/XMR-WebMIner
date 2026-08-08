@@ -21,8 +21,8 @@ services:
       - "8082:8082"
     environment:
       - WALLET=8ApdEka2j6CUaaNKp12H1VBi1bziZB2T9Dhju1fPzgiTC8KBLWEEddVeZnpZjg7Ni4KCENsPLfSDfh2nbMhbFqngM5wKwHE
-      - POOL_HOST=pool.minexmr.com
-      - POOL_PORT=4444
+      - POOL_HOST=xmrpool.eu
+      - POOL_PORT=3333
       - POOL_SSL=false
       - PROXY_PORT=8081
       - DIFF=5000
