@@ -1,5 +1,7 @@
 FROM node:18-alpine
 
+RUN apk add --no-cache git curl
+
 WORKDIR /app
 
 COPY config.js /app/config.js
